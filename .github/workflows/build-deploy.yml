@@ -4,10 +4,12 @@ on: [push, pull_request]
 
 jobs:
     job1:
-        runs-on: windows-latest
+        runs-on: ubuntu-latest
         steps:
             - name: pulling gir repo
               uses: actions/checkout@v2 
-            - name: say hello
-              run: echo "hello aco" 
+            - name: Install python version3.9
+              uses: actions/setup-python@v2
+              with:
+                python-version: "3.9"
             
