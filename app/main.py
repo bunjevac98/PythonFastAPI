@@ -48,8 +48,10 @@ def get_projects():
 
 @app.post("/projects")
 def create_project(project: Project):
-    print(project.name)
-    return {"data": "new project"}
+    project_dict = project.model_dump()
+    my_projects.append(project_dict)
+    print(project_dict)
+    return {"data": project_dict}
 
 
 # title string, content string, category, bool
