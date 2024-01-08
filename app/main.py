@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Response, status
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -42,6 +42,12 @@ def find_project(id):
             return project
 
 
+def find_index_project(id):
+    for i, p in enumerate(my_projects):
+        if p["id"] == id:
+            return i
+
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to API"}
@@ -64,4 +70,23 @@ def create_project(project: Project):
 @app.get("/projects/{id}/info")
 def get_project(id: int):
     project = find_project(id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"project with id: {id} was now found",
+        )
+
     return {"project_detail": project}
+
+
+@app.delete("/project/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(id: int):
+    index = find_index_project(id)
+    if index == None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"passed id:{id} did not exist",
+        )
+
+    my_projects.pop(index)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
