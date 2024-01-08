@@ -60,7 +60,7 @@ def get_projects():
 
 @app.post("/projects")
 def create_project(project: Project):
-    project_dict = project.model_dump()
+    project_dict = dict(project)
     my_projects.append(project_dict)
     print(my_projects)
     return {"data": project_dict}
@@ -77,6 +77,24 @@ def get_project(id: int):
         )
 
     return {"project_detail": project}
+
+
+@app.put("/project/{id}/info")
+def update_project(id: int, project: Project):
+    index = find_index_project(id)
+    if index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"passed id:{id} did not exist",
+        )
+    project_dict = dict(project)
+    project_dict["id"]=id
+    my_projects[index]=project_dict
+    return {"data": project_dict}
+
+
+# project.dict() is now dict(project) or project.model_dump()
+# Proveritiii
 
 
 @app.delete("/project/{id}", status_code=status.HTTP_204_NO_CONTENT)
