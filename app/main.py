@@ -82,7 +82,7 @@ def get_project(id: int):
 @app.delete("/project/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(id: int):
     index = find_index_project(id)
-    if index == None:
+    if index is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"passed id:{id} did not exist",
