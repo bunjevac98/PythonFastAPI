@@ -18,22 +18,28 @@ class Project(BaseModel):
 
 my_projects = [
     {
-        "id": "1",
+        "id": 1,
         "name": "Project for juniors",
         "description": "This will be nice start for junior",
-        "owner": "1",
-        "team_members": ["1", "2", "3"],
+        "owner": 1,
+        "team_members": [1, 2, 3],
         "attachements": "some file",
     },
     {
-        "id": "2",
+        "id": 2,
         "name": "Project for mediors",
         "description": "This will be nice start for mediors",
-        "owner": "1",
-        "team_members": ["2", "4", "5"],
+        "owner": 1,
+        "team_members": [2, 4, 5],
         "attachements": "Drag some file",
     },
 ]
+
+
+def find_project(id):
+    for project in my_projects:
+        if project["id"] == id:
+            return project
 
 
 @app.get("/")
@@ -50,9 +56,12 @@ def get_projects():
 def create_project(project: Project):
     project_dict = project.model_dump()
     my_projects.append(project_dict)
-    print(project_dict)
+    print(my_projects)
     return {"data": project_dict}
 
 
-# title string, content string, category, bool
-# we can store whatever we want in that schema
+# maybe error with adding new one
+@app.get("/projects/{id}/info")
+def get_project(id: int):
+    project = find_project(id)
+    return {"project_detail": project}
