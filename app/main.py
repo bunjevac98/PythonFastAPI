@@ -1,6 +1,9 @@
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Response, status
+from fastapi import FastAPI, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel
+from psycopg2.extras import RealDictCursor
+import psycopg2
+import time
 
 app = FastAPI()
 
@@ -12,8 +15,27 @@ class Project(BaseModel):
     name: str
     description: str
     owner: int
-    team_members: Optional[list]
-    attachements: str
+    logo: str
+    team_members: Optional[list[int]]
+    documents: Optional[list[str]]
+
+
+while True:
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="PythonFastAPI",
+            user="postgres",
+            password="Ackosi98",
+            cursor_factory=RealDictCursor,
+        )
+        cursor = conn.cursor()
+        print("WE CONNECTED")
+        break
+    except Exception as error:
+        print("WE FAILED")
+        print("error was:", error)
+        time.sleep(3)
 
 
 my_projects = [
@@ -21,17 +43,19 @@ my_projects = [
         "id": 1,
         "name": "Project for juniors",
         "description": "This will be nice start for junior",
+        "logo": "New Picture",
         "owner": 1,
         "team_members": [1, 2, 3],
-        "attachements": "some file",
+        "documents": "some file",
     },
     {
         "id": 2,
         "name": "Project for mediors",
         "description": "This will be nice start for mediors",
+        "logo": "Some file",
         "owner": 1,
         "team_members": [2, 4, 5],
-        "attachements": "Drag some file",
+        "documents": "Drag some file",
     },
 ]
 
@@ -55,7 +79,9 @@ async def root():
 
 @app.get("/projects")
 def get_projects():
-    return {"data": my_projects}
+    cursor.execute("""SELECT * FROM public.projects """)
+    proj = cursor.fetchall()
+    return {"data": proj}
 
 
 @app.post("/projects")
@@ -88,8 +114,8 @@ def update_project(id: int, project: Project):
             detail=f"passed id:{id} did not exist",
         )
     project_dict = dict(project)
-    project_dict["id"]=id
-    my_projects[index]=project_dict
+    project_dict["id"] = id
+    my_projects[index] = project_dict
     return {"data": project_dict}
 
 
