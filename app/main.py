@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Response, UploadFile, status
+from fastapi import FastAPI, HTTPException, Response, status
 from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 import psycopg2
