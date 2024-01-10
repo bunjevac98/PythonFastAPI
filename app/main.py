@@ -23,7 +23,7 @@ class Project(BaseModel):
     description: str
     owner_id: int
     logo: str
-    #team_members: Optional[list[int]]
+    # team_members: Optional[list[int]]
     documents: Optional[list[str]]
 
 
@@ -96,14 +96,9 @@ def get_projects(db: Session = Depends(get_db)):
 # Maybe we should add owner_id for now because we dont have user
 @app.post("/projects")
 def create_project(project: Project, db: Session = Depends(get_db)):
-    print(project)
-    new_project = models.Project(
-        name=project.name,
-        description=project.description,
-        logo=project.logo,
-        documents=project.documents,
-        owner_id=project.owner_id,
-    )
+    # new_project = models.Project(**project.dict())
+    new_project = models.Project(**project.model_dump())
+
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
@@ -112,8 +107,9 @@ def create_project(project: Project, db: Session = Depends(get_db)):
 
 # maybe error with adding new one
 @app.get("/projects/{id}/info")
-def get_project(id: int):
-    project = find_project(id)
+def get_project(id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == id).first()
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,13 +138,15 @@ def update_project(id: int, project: Project):
 
 
 @app.delete("/project/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(id: int):
-    index = find_index_project(id)
-    if index is None:
+def delete_project(id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == id)
+
+    if project.first() is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"passed id:{id} did not exist",
         )
-
-    my_projects.pop(index)
+    
+    project.delete(synchronize_session=False)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
