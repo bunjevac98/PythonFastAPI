@@ -19,12 +19,11 @@ app = FastAPI()
 
 
 class Project(BaseModel):
-    id: int
     name: str
     description: str
-    owner: int
+    owner_id: int
     logo: str
-    team_members: Optional[list[int]]
+    #team_members: Optional[list[int]]
     documents: Optional[list[str]]
 
 
@@ -87,26 +86,28 @@ async def root():
 """
 
 
-@app.get("/sqlalchemy")
-def test_projects(db: Session = Depends(get_db)):
+@app.get("/projects")
+def get_projects(db: Session = Depends(get_db)):
     projects = db.query(models.Project).all()
 
     return {"data": projects}
 
 
-@app.get("/projects")
-def get_projects():
-    cursor.execute("""SELECT * FROM public.projects """)
-    proj = cursor.fetchall()
-    return {"data": proj}
-
-
+# Maybe we should add owner_id for now because we dont have user
 @app.post("/projects")
-def create_project(project: Project):
-    project_dict = dict(project)
-    my_projects.append(project_dict)
-    print(my_projects)
-    return {"data": project_dict}
+def create_project(project: Project, db: Session = Depends(get_db)):
+    print(project)
+    new_project = models.Project(
+        name=project.name,
+        description=project.description,
+        logo=project.logo,
+        documents=project.documents,
+        owner_id=project.owner_id,
+    )
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+    return {"data": new_project}
 
 
 # maybe error with adding new one
