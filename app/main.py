@@ -1,11 +1,19 @@
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Response, status
+from fastapi import FastAPI, HTTPException, Response, status, Depends
 from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 import psycopg2
 import time
+from sqlalchemy.orm import Session
+from database import models
+from database.database import engine, get_db
+
+
+models.Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI()
+
 
 # If we want to save pdf file it is bytes type in python
 
@@ -72,9 +80,18 @@ def find_index_project(id):
             return i
 
 
+"""
 @app.get("/")
 async def root():
     return {"message": "Welcome to API"}
+"""
+
+
+@app.get("/sqlalchemy")
+def test_projects(db: Session = Depends(get_db)):
+    projects = db.query(models.Project).all()
+
+    return {"data": projects}
 
 
 @app.get("/projects")
