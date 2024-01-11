@@ -1,9 +1,10 @@
+from typing import List
 from fastapi import FastAPI, HTTPException, Response, status, Depends
 from psycopg2.extras import RealDictCursor
 import psycopg2
 import time
 from sqlalchemy.orm import Session
-from . import schemas
+from . import schemas, utils
 from database import models
 from database.database import engine, get_db
 
@@ -12,7 +13,6 @@ models.Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
-
 
 
 while True:
@@ -40,15 +40,19 @@ async def root():
 """
 
 
-@app.get("/projects")
+@app.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(db: Session = Depends(get_db)):
     projects = db.query(models.Project).all()
 
-    return {"data": projects}
+    return projects
 
 
 # Maybe we should add owner_id for now because we dont have user
-@app.post("/projects")
+@app.post(
+    "/projects",
+    status_code=status.HTTP_201_CREATED,
+    response_model=schemas.ProjectResponse,
+)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     # new_project = models.Project(**project.dict())
     new_project = models.Project(**project.model_dump())
@@ -56,11 +60,11 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
-    return {"data": new_project}
+    return new_project
 
 
 # maybe error with adding new one
-@app.get("/projects/{id}/info")
+@app.get("/projects/{id}/info", response_model=schemas.ProjectResponse)
 def get_project(id: int, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == id).first()
 
@@ -70,10 +74,10 @@ def get_project(id: int, db: Session = Depends(get_db)):
             detail=f"project with id: {id} was now found",
         )
 
-    return {"project_detail": project}
+    return project
 
 
-@app.put("/project/{id}/info")
+@app.put("/project/{id}/info", response_model=schemas.ProjectResponse)
 def update_project(
     id: int, update_project: schemas.ProjectCreate, db: Session = Depends(get_db)
 ):
@@ -92,7 +96,7 @@ def update_project(
 
     db.commit()
 
-    return {"data": update_project}
+    return update_project
 
 
 # project.dict() is now dict(project) or project.model_dump()
@@ -112,3 +116,17 @@ def delete_project(id: int, db: Session = Depends(get_db)):
     project.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/user", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # hash password
+    hashed_password = utils.hash(user.password)
+    user.password = hashed_password
+    new_user = models.User(**user.model_dump())
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
