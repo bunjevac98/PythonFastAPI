@@ -4,7 +4,7 @@ import psycopg2
 import time
 from database import models
 from database.database import engine
-from .routers import project, user
+from .routers import project, user, auth
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -32,6 +32,7 @@ while True:
 
 app.include_router(project.router)
 app.include_router(user.router)
+app.include_router(auth.router)
 
 
 @app.get("/")

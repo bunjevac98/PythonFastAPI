@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 from database.database import get_db
 from typing import List
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/projects",
+    tags=["Projects"],
+)
 
 
-@router.get("/projects", response_model=List[schemas.ProjectResponse])
+@router.get("/", response_model=List[schemas.ProjectResponse])
 def get_projects(db: Session = Depends(get_db)):
     projects = db.query(models.Project).all()
 
@@ -17,7 +20,7 @@ def get_projects(db: Session = Depends(get_db)):
 
 # Maybe we should add owner_id for now because we dont have user
 @router.post(
-    "/projects",
+    "/",
     status_code=status.HTTP_201_CREATED,
     response_model=schemas.ProjectResponse,
 )
@@ -28,11 +31,12 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
+
     return new_project
 
 
 # maybe error with adding new one
-@router.get("/projects/{id}/info", response_model=schemas.ProjectResponse)
+@router.get("/{id}/info", response_model=schemas.ProjectResponse)
 def get_project(id: int, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == id).first()
 
@@ -46,7 +50,7 @@ def get_project(id: int, db: Session = Depends(get_db)):
 
 
 # We can update just name, description, logo, documents
-@router.put("/project/{id}/info", response_model=schemas.ProjectResponse)
+@router.put("/{id}/info", response_model=schemas.ProjectResponse)
 def update_project(
     id: int, update_project: schemas.ProjectCreate, db: Session = Depends(get_db)
 ):
@@ -72,7 +76,7 @@ def update_project(
 # Proveritiii
 
 
-@router.delete("/project/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(id: int, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == id)
 
