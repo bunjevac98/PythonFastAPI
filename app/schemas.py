@@ -28,7 +28,7 @@ class ProjectResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
+#------------USER MODEL-----------------
 class UserBase(BaseModel):
     username: str
     password: str
@@ -46,6 +46,7 @@ class UserCreate(UserBase):
 class UserOut(BaseModel):
     id: int
     email: EmailStr
+    username:str
 
     class Config:
         from_attributes = True
