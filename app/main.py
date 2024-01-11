@@ -1,10 +1,9 @@
-from typing import Optional
 from fastapi import FastAPI, HTTPException, Response, status, Depends
-from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 import psycopg2
 import time
 from sqlalchemy.orm import Session
+from . import schemas
 from database import models
 from database.database import engine, get_db
 
@@ -14,17 +13,6 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-
-# If we want to save pdf file it is bytes type in python
-
-
-class Project(BaseModel):
-    name: str
-    description: str
-    owner_id: int
-    logo: str
-    # team_members: Optional[list[int]]
-    documents: Optional[list[str]]
 
 
 while True:
@@ -45,40 +33,6 @@ while True:
         time.sleep(3)
 
 
-my_projects = [
-    {
-        "id": 1,
-        "name": "Project for juniors",
-        "description": "This will be nice start for junior",
-        "logo": "New Picture",
-        "owner": 1,
-        "team_members": [1, 2, 3],
-        "documents": "some file",
-    },
-    {
-        "id": 2,
-        "name": "Project for mediors",
-        "description": "This will be nice start for mediors",
-        "logo": "Some file",
-        "owner": 1,
-        "team_members": [2, 4, 5],
-        "documents": "Drag some file",
-    },
-]
-
-
-def find_project(id):
-    for project in my_projects:
-        if project["id"] == id:
-            return project
-
-
-def find_index_project(id):
-    for i, p in enumerate(my_projects):
-        if p["id"] == id:
-            return i
-
-
 """
 @app.get("/")
 async def root():
@@ -95,7 +49,7 @@ def get_projects(db: Session = Depends(get_db)):
 
 # Maybe we should add owner_id for now because we dont have user
 @app.post("/projects")
-def create_project(project: Project, db: Session = Depends(get_db)):
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     # new_project = models.Project(**project.dict())
     new_project = models.Project(**project.model_dump())
 
@@ -120,17 +74,25 @@ def get_project(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/project/{id}/info")
-def update_project(id: int, project: Project):
-    index = find_index_project(id)
-    if index is None:
+def update_project(
+    id: int, update_project: schemas.ProjectCreate, db: Session = Depends(get_db)
+):
+    project_query = db.query(models.Project).filter(models.Project.id == id)
+    print(update_project)
+
+    project = project_query.first()
+    print(project)
+    if project_query is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"passed id:{id} did not exist",
         )
-    project_dict = dict(project)
-    project_dict["id"] = id
-    my_projects[index] = project_dict
-    return {"data": project_dict}
+
+    project_query.update(update_project.model_dump(), synchronize_session=False)
+
+    db.commit()
+
+    return {"data": update_project}
 
 
 # project.dict() is now dict(project) or project.model_dump()
@@ -146,7 +108,7 @@ def delete_project(id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"passed id:{id} did not exist",
         )
-    
+
     project.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
