@@ -1,4 +1,5 @@
 from fastapi import HTTPException, Response, status, Depends, APIRouter
+from app import oauth2
 from .. import schemas
 from database import models
 from sqlalchemy.orm import Session
@@ -24,7 +25,7 @@ def get_projects(db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
     response_model=schemas.ProjectResponse,
 )
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db),get_current_user:int=Depends(oauth2.get_current_user)):
     # new_project = models.Project(**project.dict())
     new_project = models.Project(**project.model_dump())
 
