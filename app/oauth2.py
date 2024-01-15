@@ -1,8 +1,11 @@
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from app import schemas
+from database import models
+from database.database import get_db
 from fastapi import Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
 # login is path from auth
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -33,12 +36,15 @@ def verify_access_token(token: str, credetials_exception):
         # Decoding JWT
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         # Extract ID
-        id: str = payload.get("user_id")
+        id_payload: str = str(payload.get("user_id"))
 
-        if id is None:
+        if id_payload is None:
             raise credetials_exception
+
         # Validate id or extra information if we have
-        token_data = schemas.TokenData(id=id)
+        token_data = schemas.TokenData(id=id_payload)
+
+        print(token_data)
 
     except JWTError:
         raise credetials_exception
@@ -46,11 +52,18 @@ def verify_access_token(token: str, credetials_exception):
     return token_data
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+):
     credetials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail= "Could not validate credentials",
+        detail="Could not validate credentials",
         headers={"WWW-Autenticate": "Bearer"},
     )
+    # maybe to rename it
+    token = verify_access_token(token, credetials_exception)
+    
+    user = db.query(models.User).filter(models.User.id == token.id).first()
+
     # Returning token data who calls this action
-    return verify_access_token(token, credetials_exception)
+    return user
