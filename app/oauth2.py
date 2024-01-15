@@ -62,7 +62,7 @@ def get_current_user(
     )
     # maybe to rename it
     token = verify_access_token(token, credetials_exception)
-    
+
     user = db.query(models.User).filter(models.User.id == token.id).first()
 
     # Returning token data who calls this action

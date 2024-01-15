@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, EmailStr
-from typing import ClassVar, Optional
+from typing import Optional
 
 
 class ProjectBase(BaseModel):
