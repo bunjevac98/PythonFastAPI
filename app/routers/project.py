@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[schemas.ProjectResponse])
+@router.get("/", response_model=List[schemas.ProjectBase])
 def get_projects(
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
@@ -26,7 +26,7 @@ def get_projects(
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
-    response_model=schemas.ProjectResponse,
+    response_model=schemas.ProjectBase,
 )
 def create_project(
     project: schemas.ProjectCreate,
@@ -34,9 +34,9 @@ def create_project(
     current_user: int = Depends(oauth2.get_current_user),
 ):
     # id is now string
-    print("this is user email:", current_user.email)
+    print("this is user email:", current_user.id)
     # new_project = models.Project(**project.dict())
-    new_project = models.Project(**project.model_dump())
+    new_project = models.Project(owner_id=current_user.id, **project.model_dump())
 
     db.add(new_project)
     db.commit()
@@ -45,7 +45,7 @@ def create_project(
     return new_project
 
 
-# maybe error with adding new one
+# respones model
 @router.get("/{id}/info", response_model=schemas.ProjectResponse)
 def get_project(
     id: int,
@@ -64,7 +64,7 @@ def get_project(
 
 
 # We can update just name, description, logo, documents
-@router.put("/{id}/info", response_model=schemas.ProjectResponse)
+@router.put("/{id}/info", response_model=schemas.ProjectBase)
 def update_project(
     id: int,
     update_project: schemas.ProjectCreate,
@@ -75,11 +75,16 @@ def update_project(
     print(update_project)
 
     project = project_query.first()
-    print(project)
-    if project_query is None:
+
+    if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"passed id:{id} did not exist",
+        )
+    if project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not autorized to perform requested action",
         )
 
     project_query.update(update_project.model_dump(), synchronize_session=False)
@@ -99,14 +104,21 @@ def delete_project(
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
 ):
-    project = db.query(models.Project).filter(models.Project.id == id)
+    project_query = db.query(models.Project).filter(models.Project.id == id)
 
-    if project.first() is None:
+    project = project_query.first()
+
+    if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"passed id:{id} did not exist",
         )
+    if project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not autorized to perform requested action",
+        )
 
-    project.delete(synchronize_session=False)
+    project_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -6,10 +6,10 @@ from typing import Optional
 class ProjectBase(BaseModel):
     name: str
     description: str
-    owner_id: int
     logo: str
-    # team_members: Optional[list[int]]
     documents: Optional[list[str]]
+    # team_members: Optional[list[int]]
+    # owner_id: int
 
 
 class ProjectCreate(ProjectBase):
@@ -24,6 +24,7 @@ class ProjectResponse(BaseModel):
     description: str
     logo: str
     documents: Optional[list[str]]
+    owner_id: int
 
     class Config:
         from_attributes = True
