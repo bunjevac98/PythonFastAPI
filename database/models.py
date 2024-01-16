@@ -17,11 +17,14 @@ class Project(Base):
     # this is relation betwen User and project
     owner = relationship("User", back_populates="project_created")
 
+
+"""
     team_members = relationship(
         "User",
         secondary="user_project_association",
         back_populates="projects_worked_on",
     )
+"""
 
 
 # CASCADE ALL
@@ -42,13 +45,19 @@ class User(Base):
         cascade="all, delete-orphan",
         foreign_keys="[Project.owner_id]",
     )
+    """
     projects_worked_on = relationship(
         "Project", secondary="user_project_association", back_populates="team_members"
     )
+    """
 
 
 class UserProjectAssociation(Base):
     __tablename__ = "user_project_association"
 
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), primary_key=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
