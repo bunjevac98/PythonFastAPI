@@ -53,7 +53,6 @@ def invite_user(
     current_user: dict = Depends(oauth2.get_current_user),
     db: Session = Depends(get_db),
 ):
-    
     # Check if project exist
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
@@ -65,15 +64,17 @@ def invite_user(
     if current_user.id != project.owner_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Only the project owner can invite participants",
+            detail="Only the project owner can invite participants",
         )
     # Checking if user we invite exist
-    user_to_invite = db.query(models.User).filter(models.User.username == user_login).first()
+    user_to_invite = (
+        db.query(models.User).filter(models.User.username == user_login).first()
+    )
     if not user_to_invite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User to invite not found"
         )
-    
+
     print("user to invite", user_to_invite)
 
     existing_invitation = (
