@@ -1,15 +1,65 @@
-from fastapi import HTTPException, Response, status, Depends, APIRouter, Query
+from fastapi import (
+    HTTPException,
+    Response,
+    status,
+    Depends,
+    APIRouter,
+    Query,
+    File,
+    UploadFile,
+)
 from app import oauth2
 from .. import schemas
 from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
 from typing import List
+from app.config import settings
+import boto3
+from pathlib import Path
 
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"],
 )
+
+AWS_ACCESS_KEY_ID = settings.aws_access_key_id
+AWS_SECRET_ACCESS_KEY = settings.aws_secret_access_key
+AWS_REGION = settings.aws_region  # your desired region
+BUCKET_NAME = settings.bucket_name  # your desired bucket name
+
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region_name=AWS_REGION,
+)
+
+
+def validate_file_extension(file_name: str, allowed_extensions: set):
+    ext = Path(file_name).suffix.lower()[1:]
+    return ext in allowed_extensions
+
+
+def upload_document_to_s3(file, project_id):
+    # generating unique file key
+    file_key = f"{project_id}/{file.filename}"
+
+    s3_client.upload_fileobj(file.file, BUCKET_NAME, file_key)
+
+    s3_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{file_key}"
+
+    return s3_url
+
+
+ALLOWED_EXTENSIONS = {"pdf", "docx"}
+
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# It is set that just owneer of project can upload file we need to change that
 
 
 @router.get("/", response_model=List[schemas.ProjectBase])
@@ -20,6 +70,58 @@ def get_projects(
     projects = db.query(models.Project).all()
 
     return projects
+
+
+@router.post("/{project_id}/documents")
+def upload_document(
+    project_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(oauth2.get_current_user),
+    db: Session = Depends(get_db),
+):
+    print("this is our document")
+    print(file.filename)
+
+    try:
+        if not allowed_file(file.filename):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only PDF and DOCX file are allowed",
+            )
+
+        project = (
+            db.query(models.Project).filter(models.Project.id == project_id).first()
+        )
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with {project_id} not found",
+            )
+        # check if user that is loged in is owner of project
+        if current_user.id != project.owner_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the project owner can invite participants",
+            )
+
+        s3_url = upload_document_to_s3(file, project_id)
+
+        db_document = models.Document(
+            project_id=project_id,
+            file_name=file.filename,
+            file_path=s3_url,
+            user_id=current_user.id,
+        )
+        db.add(db_document)
+        db.commit()
+        db.refresh(db_document)
+
+        return {"messagee": "Document uploaded successfuly", "s3_url": s3_url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document: {str(e)}",
+        )
 
 
 # Maybe we should add owner_id for now because we dont have user

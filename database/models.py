@@ -1,5 +1,5 @@
 from .database import Base
-from sqlalchemy import Column, DateTime, Integer, String, Text, ARRAY, ForeignKey
+from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
 
@@ -10,7 +10,7 @@ class Project(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     logo = Column(String)
-    documents = Column(ARRAY(String))
+    # documents = Column(ARRAY(String))
     owner_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -37,7 +37,6 @@ class User(Base):
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
-    picture = Column(String)
     date_of_birth = Column(DateTime)
     project_created = relationship(
         "Project",
@@ -61,3 +60,15 @@ class UserProjectAssociation(Base):
     project_id = Column(
         Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
     )
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
+    file_name = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)  # for storing url or s3 key
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))

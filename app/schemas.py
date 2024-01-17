@@ -7,7 +7,7 @@ class ProjectBase(BaseModel):
     name: str
     description: str
     logo: str
-    documents: Optional[list[str]]
+    # documents: Optional[list[str]]
     # team_members: Optional[list[int]]
     # owner_id: int
 
@@ -23,7 +23,7 @@ class ProjectResponse(BaseModel):
     name: str
     description: str
     logo: str
-    documents: Optional[list[str]]
+    # documents: Optional[list[str]]
     owner_id: int
 
     class Config:
@@ -37,7 +37,7 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    picture: Optional[str]
+    # picture: Optional[str]
     date_of_birth: Optional[date]
 
 
@@ -66,3 +66,15 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     id: Optional[str] = None
+
+
+class Document(BaseModel):
+    file_name: str
+    file_path: str
+    project_id: int
+    user_id: int
+
+
+class AllowedExtensions:
+    pdf: {"pdf"}
+    docx: {"docx"}
