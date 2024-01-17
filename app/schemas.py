@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 
@@ -16,14 +16,11 @@ class ProjectCreate(ProjectBase):
     pass
 
 
-#
 # class ProjectUpdate(ProjectBase):
-# probably team_members we sand too
 class ProjectResponse(BaseModel):
     name: str
     description: str
     logo: str
-    # documents: Optional[list[str]]
     owner_id: int
 
     class Config:
@@ -37,7 +34,6 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    # picture: Optional[str]
     date_of_birth: Optional[date]
 
 
@@ -59,6 +55,7 @@ class UserLogin(BaseModel):
     password: str
 
 
+# ----------TOKENS FOR LOGIN-------------
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -68,6 +65,7 @@ class TokenData(BaseModel):
     id: Optional[str] = None
 
 
+# ------------DOCUMENTS-----------------
 class Document(BaseModel):
     file_name: str
     file_path: str
@@ -75,6 +73,6 @@ class Document(BaseModel):
     user_id: int
 
 
-class AllowedExtensions:
-    pdf: {"pdf"}
-    docx: {"docx"}
+class DocumentUpdate(BaseModel):
+    file_name: str = Field(None, title="Updated File Name", max_length=255)
+

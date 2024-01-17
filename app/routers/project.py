@@ -14,50 +14,12 @@ from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
 from typing import List
-from app.config import settings
-import boto3
-from pathlib import Path
+from app.utils import file_utils
 
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"],
 )
-
-AWS_ACCESS_KEY_ID = settings.aws_access_key_id
-AWS_SECRET_ACCESS_KEY = settings.aws_secret_access_key
-AWS_REGION = settings.aws_region  # your desired region
-BUCKET_NAME = settings.bucket_name  # your desired bucket name
-
-s3_client = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_REGION,
-)
-
-
-def validate_file_extension(file_name: str, allowed_extensions: set):
-    ext = Path(file_name).suffix.lower()[1:]
-    return ext in allowed_extensions
-
-
-def upload_document_to_s3(file, project_id):
-    # generating unique file key
-    file_key = f"{project_id}/{file.filename}"
-
-    s3_client.upload_fileobj(file.file, BUCKET_NAME, file_key)
-
-    s3_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{file_key}"
-
-    return s3_url
-
-
-ALLOWED_EXTENSIONS = {"pdf", "docx"}
-
-
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 # It is set that just owneer of project can upload file we need to change that
 
@@ -72,55 +34,80 @@ def get_projects(
     return projects
 
 
-@router.post("/{project_id}/documents")
-def upload_document(
-    project_id: str,
-    file: UploadFile = File(...),
-    current_user: dict = Depends(oauth2.get_current_user),
+# respones model
+@router.get("/{id}/info", response_model=schemas.ProjectResponse)
+def get_project(
+    id: int,
     db: Session = Depends(get_db),
+    current_user: int = Depends(oauth2.get_current_user),
 ):
-    print("this is our document")
-    print(file.filename)
+    project = db.query(models.Project).filter(models.Project.id == id).first()
 
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"project with id: {id} was now found",
+        )
+
+    return project
+
+
+@router.get("/{project_id}/documents")
+def get_projects_documents(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: int = Depends(oauth2.get_current_user),
+):
     try:
-        if not allowed_file(file.filename):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only PDF and DOCX file are allowed",
-            )
-
         project = (
             db.query(models.Project).filter(models.Project.id == project_id).first()
         )
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project with {project_id} not found",
+                detail=f"No project found with ID: {project_id}",
             )
-        # check if user that is loged in is owner of project
-        if current_user.id != project.owner_id:
+        if current_user.id == project.owner_id:
+            # User is the owner, proceed to get documents
+            documents = (
+                db.query(models.Document)
+                .filter(models.Document.project_id == project_id)
+                .all()
+            )
+            return documents
+        else:
+            # Check if the user is a participant in the project
+            participant = (
+                db.query(models.UserProjectAssociation)
+                .filter(
+                    models.UserProjectAssociation.project_id == project_id,
+                    models.UserProjectAssociation.user_id == current_user.id,
+                )
+                .first()
+            )
+        if participant:
+            documents = (
+                db.query(models.Document)
+                .filter(models.Document.project_id == project_id)
+                .all()
+            )
+
+            if not documents:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"No documents found for project with id--{project_id}",
+                )
+
+            return documents
+        else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only the project owner can invite participants",
+                detail="You do not have permission to access project documents.",
             )
-
-        s3_url = upload_document_to_s3(file, project_id)
-
-        db_document = models.Document(
-            project_id=project_id,
-            file_name=file.filename,
-            file_path=s3_url,
-            user_id=current_user.id,
-        )
-        db.add(db_document)
-        db.commit()
-        db.refresh(db_document)
-
-        return {"messagee": "Document uploaded successfuly", "s3_url": s3_url}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload document: {str(e)}",
+            detail=f"Failed to retrive project documents: {str(e)}",
         )
 
 
@@ -204,22 +191,54 @@ def invite_user(
     return {"message": f"Invited {user_to_invite.username} to project {project.name}"}
 
 
-# respones model
-@router.get("/{id}/info", response_model=schemas.ProjectResponse)
-def get_project(
-    id: int,
+@router.post("/{project_id}/documents")
+def upload_document(
+    project_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(oauth2.get_current_user),
     db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
 ):
-    project = db.query(models.Project).filter(models.Project.id == id).first()
+    
+    try:
+        if not file_utils.allowed_file(file.filename):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only PDF and DOCX file are allowed",
+            )
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"project with id: {id} was now found",
+        project = (
+            db.query(models.Project).filter(models.Project.id == project_id).first()
         )
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with {project_id} not found",
+            )
+        # check if user that is loged in is owner of project
+        if current_user.id != project.owner_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the project owner can invite participants",
+            )
 
-    return project
+        s3_url = file_utils.upload_document_to_s3(file, project_id)
+
+        db_document = models.Document(
+            project_id=project_id,
+            file_name=file.filename,
+            file_path=s3_url,
+            user_id=current_user.id,
+        )
+        db.add(db_document)
+        db.commit()
+        db.refresh(db_document)
+
+        return {"messagee": "Document uploaded successfuly", "s3_url": s3_url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document: {str(e)}",
+        )
 
 
 # We can update just name, description, logo, documents
