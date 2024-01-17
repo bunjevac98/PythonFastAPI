@@ -75,4 +75,3 @@ class Document(BaseModel):
 
 class DocumentUpdate(BaseModel):
     file_name: str = Field(None, title="Updated File Name", max_length=255)
-

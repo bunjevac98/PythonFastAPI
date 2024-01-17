@@ -198,7 +198,6 @@ def upload_document(
     current_user: dict = Depends(oauth2.get_current_user),
     db: Session = Depends(get_db),
 ):
-    
     try:
         if not file_utils.allowed_file(file.filename):
             raise HTTPException(

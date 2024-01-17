@@ -6,7 +6,7 @@ from database.database import get_db
 from .. import oauth2
 from database import models
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
-from app.utils import utils
+
 
 router = APIRouter(tags=["Autentification"])
 

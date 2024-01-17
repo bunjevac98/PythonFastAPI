@@ -1,12 +1,8 @@
 from fastapi import (
     HTTPException,
-    Response,
     status,
     Depends,
     APIRouter,
-    Query,
-    File,
-    UploadFile,
 )
 from app import oauth2
 from .. import schemas
@@ -56,10 +52,16 @@ def get_specific_document(
 
 
 @router.put("/{document_id}")
-def update_document(document_id=int, updated_document=schemas.DocumentUpdate,db: Session = Depends(get_db) ):
+def update_document(
+    document_id=int,
+    updated_document=schemas.DocumentUpdate,
+    db: Session = Depends(get_db),
+):
     try:
         # Query the database to get the specific document by document_id
-        document = db.query(models.Document).filter(models.Document.id == document_id).first()
+        document = (
+            db.query(models.Document).filter(models.Document.id == document_id).first()
+        )
 
         if not document:
             raise HTTPException(
@@ -78,7 +80,7 @@ def update_document(document_id=int, updated_document=schemas.DocumentUpdate,db:
         db.refresh(document)
 
         return document
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

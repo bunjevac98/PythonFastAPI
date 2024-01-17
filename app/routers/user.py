@@ -4,7 +4,6 @@ from .. import schemas
 from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
-from app.utils import utils
 
 router = APIRouter(
     prefix="/users",
