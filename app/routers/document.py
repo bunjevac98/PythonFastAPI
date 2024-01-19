@@ -1,83 +1,59 @@
 from fastapi import (
+    File,
     HTTPException,
+    UploadFile,
     status,
     Depends,
     APIRouter,
 )
 from app import oauth2
+from app.config import settings
 from .. import schemas
 from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
+from app.utils import dependencies, file_utils
 
 
 router = APIRouter(
     prefix="/document",
     tags=["Documents"],
 )
+BUCKET_NAME = settings.bucket_name
+AWS_REGION = settings.aws_region
 
 
 @router.get("/{document_id}")
 def get_specific_document(
-    document_id: int,
-    current_user: dict = Depends(oauth2.get_current_user),
-    db: Session = Depends(get_db),
+    document: models.Document = Depends(dependencies.get_document),
+    project: models.Project = Depends(dependencies.get_associated_project),
+    # access_type: str = Depends(dependencies.is_owner_or_participant),
 ):
+    key = f"{document.project_id}/{document.file_name}"
     try:
-        specific_document = (
-            db.query(models.Document).filter(models.Document.id == document_id).first()
-        )
-        """ logic that just owner of uploaded document can get that document
-            we can check if the user is on that project where is document to-not implemented here
-        if current_user.id !=specific_document.user_id:
-             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only the document owner can get specific document",
-            )
-        """
-        print(specific_document)
-        if not specific_document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No document found with ID: {document_id}",
-            )
-
-        return specific_document
-
+        return file_utils.download_document_from_s3(document, key)
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrive specific document{str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
 
 @router.put("/{document_id}")
 def update_document(
-    document_id=int,
-    updated_document=schemas.DocumentUpdate,
+    document: models.Document = Depends(dependencies.get_document),
+    update_document=schemas.DocumentUpdate,
+    current_user: dict = Depends(oauth2.get_current_user),
     db: Session = Depends(get_db),
+    file: UploadFile = File(None),
 ):
     try:
-        # Query the database to get the specific document by document_id
-        document = (
-            db.query(models.Document).filter(models.Document.id == document_id).first()
-        )
+        print(update_document)
+        document.file_name = update_document
 
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No document found with ID: {document_id}",
-            )
-
-        # Update the document with the provided data
-        for key, value in updated_document.dict(exclude_unset=True).items():
-            setattr(document, key, value)
-
-        # Commit the changes to the database
         db.commit()
-
-        # Refresh the document to get the updated values
         db.refresh(document)
+
+        file_utils.update_document_on_s3(document)
 
         return document
 

@@ -1,12 +1,17 @@
+from fastapi import HTTPException, status
+from fastapi.responses import StreamingResponse
+from app import schemas
 from app.config import settings
 import boto3
 from pathlib import Path
+from botocore.exceptions import NoCredentialsError
 
 AWS_ACCESS_KEY_ID = settings.aws_access_key_id
 AWS_SECRET_ACCESS_KEY = settings.aws_secret_access_key
-AWS_REGION = settings.aws_region  # your desired region
-BUCKET_NAME = settings.bucket_name  # your desired bucket name
+AWS_REGION = settings.aws_region
+BUCKET_NAME = settings.bucket_name
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
+
 
 s3_client = boto3.client(
     "s3",
@@ -34,3 +39,46 @@ def upload_document_to_s3(file, project_id):
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def get_document_file_path(document: schemas.Document) -> str:
+    #  path to my document files
+    return document.file_path
+
+
+def download_document_from_s3(document: schemas.Document, file_key: str):
+    try:
+        # Generate a presigned URL for temporary access to the file
+        """
+        presigned_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": file_key},
+            ExpiresIn=3600,  # Link expires in 1 hour (adjust as needed)
+        )
+        """
+
+        response = s3_client.get_object(Bucket=BUCKET_NAME, Key=file_key)
+        content_type = response["ContentType"]
+        streaming_body = response["Body"]
+
+        return StreamingResponse(
+            streaming_body,
+            media_type=content_type,
+            headers={"Content-Disposition": f"attachment; filename={file_key}"},
+        )
+    except NoCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AWS credentials not available",
+        )
+
+
+def update_document_on_s3(document: schemas.Document):
+    try:
+        s3_key = f"{document.project_id}/{document.file_name}"
+        s3_client.upload_fileobj(document.file_path, BUCKET_NAME, s3_key)
+    except NoCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AWS credentials not available",
+        )

@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 
@@ -74,4 +74,4 @@ class Document(BaseModel):
 
 
 class DocumentUpdate(BaseModel):
-    file_name: str = Field(None, title="Updated File Name", max_length=255)
+    file_name: str
