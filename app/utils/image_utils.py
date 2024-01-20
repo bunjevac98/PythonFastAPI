@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from fastapi.responses import StreamingResponse
 from app.config import settings
 import boto3
 from botocore.exceptions import NoCredentialsError
@@ -18,10 +19,29 @@ s3_client = boto3.client(
 
 
 def uploading_image_to_s3(file, project_id):
-    key = f"project/{project_id}/logo"
+    key = f"project/{project_id}/{file.filename}"
     try:
         s3_client.upload_fileobj(file.file, AWS_BUCKET_NAME, key)
         return f"{S3_BASE_URL}/{key}"
+    except NoCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AWS credentials not available",
+        )
+
+
+def downloading_image_from_s3(key: str):
+    try:
+        response = s3_client.get_object(Bucket=AWS_BUCKET_NAME, Key=key)
+        content_type = response["ContentType"]
+        print(content_type, "OVO JE KEY")
+        streaming_body = response["Body"]
+
+        return StreamingResponse(
+            streaming_body,
+            media_type=content_type,
+            headers={"Content-Disposition": f"attachment; filename={key}"},
+        )
     except NoCredentialsError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

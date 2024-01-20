@@ -14,7 +14,7 @@ from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
 from typing import List
-from app.utils import image_utils, file_utils
+from app.utils import image_utils, file_utils, dependencies
 
 router = APIRouter(
     prefix="/projects",
@@ -303,6 +303,21 @@ def delete_project(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/dasd")
-def upload_logo():
-    return
+# mozda treba model
+@router.get("/{id}/logo")
+def download_project_logo(
+    project: schemas.ProjectBase = Depends(dependencies.get_project),
+    db: Session = Depends(get_db),
+    current_user: int = Depends(oauth2.get_current_user),
+):
+    key = project.logo.split("/")
+    filename = key[-1]
+    print(filename)
+    try:
+        key = f"project/{project.id}/{filename}"
+        return image_utils.downloading_image_from_s3(key)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to download image: {str(e)}"
+        )

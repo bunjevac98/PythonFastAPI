@@ -19,6 +19,16 @@ def get_document(document_id: int, db: Session = Depends(get_db)):
     return document
 
 
+def get_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No project found with ID: {project_id}",
+        )
+    return project
+
+
 # Geting project that have that document
 def get_associated_project(
     document: schemas.Document = Depends(get_document), db: Session = Depends(get_db)
