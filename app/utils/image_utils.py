@@ -47,3 +47,42 @@ def downloading_image_from_s3(key: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="AWS credentials not available",
         )
+
+
+def update_project_image(file, project_id, existing_image_key):
+    try:
+        s3_key = f"project/{project_id}/{file.filename}"
+
+        if s3_key == existing_image_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="We already have image with key: {existing_file_key}",
+            )
+
+        s3_client.upload_fileobj(file.file, AWS_BUCKET_NAME, s3_key)
+        print(s3_key, "Novi key")
+        if existing_image_key:
+            s3_client.delete_object(Bucket=AWS_BUCKET_NAME, Key=existing_image_key)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="AWS credentials not available, we didnt delete object with key{existing_file_key}",
+            )
+        return f"{S3_BASE_URL}/{s3_key}"
+
+    except NoCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AWS credentials not available",
+        )
+
+
+def delete_image_on_s3(path_key):
+    try:
+        if path_key:
+            s3_client.delete_object(Bucket=AWS_BUCKET_NAME, Key=path_key)
+    except NoCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AWS credentials not available",
+        )

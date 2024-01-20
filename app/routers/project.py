@@ -307,7 +307,6 @@ def delete_project(
 @router.get("/{id}/logo")
 def download_project_logo(
     project: schemas.ProjectBase = Depends(dependencies.get_project),
-    db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
 ):
     key = project.logo.split("/")
@@ -320,4 +319,71 @@ def download_project_logo(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to download image: {str(e)}"
+        )
+
+
+@router.put("/{id}/logo")
+def upserting_project_logo(
+    project: schemas.ProjectBase = Depends(dependencies.get_project),
+    current_user: int = Depends(oauth2.get_current_user),
+    db: Session = Depends(get_db),
+    file: UploadFile = File(None),
+):
+    try:
+        if file:
+            key = project.logo.split("/")
+            filename = key[-1]
+
+            existing_image_s3_key = f"project/{project.id}/{filename}"
+            new_logo_path = image_utils.update_project_image(
+                file=file,
+                project_id=project.id,
+                existing_image_key=existing_image_s3_key,
+            )
+            # da li vec postoji takva slika projekta
+            # ukoliko ne postoji onda uploaduj novu/izbrisi trenutnu
+            print(new_logo_path, "NOVI PATH ZA LOGO")
+            project.logo = new_logo_path
+
+            db.commit()
+            db.refresh(project)
+
+            return project
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update document: {str(e)}",
+        )
+
+
+@router.delete("/{id}/logo")
+def delete_project_logo(
+    project: models.Project = Depends(dependencies.get_project),
+    current_user: int = Depends(oauth2.get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        # ovo mozda i nije potrebno
+        if project.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to delete this document",
+            )
+        key = project.logo.split("/")
+        filename = key[-1]
+
+        existing_image_s3_key = f"project/{project.id}/{filename}"
+        print(existing_image_s3_key, "key za delete")
+
+        image_utils.delete_image_on_s3(existing_image_s3_key)
+        project.logo = None
+
+        db.commit()
+
+        return {"message": f"Image with project ID {project.id} has been deleted"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document: {str(e)} ",
         )

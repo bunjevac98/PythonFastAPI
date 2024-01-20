@@ -74,7 +74,8 @@ def update_document(
             return existing_document
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to update document: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update document: {str(e)}",
         )
 
 
@@ -87,7 +88,7 @@ def delete_document(
     try:
         if document.user_id != current_user.id:
             raise HTTPException(
-                status_code=403,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this document",
             )
         print(document.file_path)
