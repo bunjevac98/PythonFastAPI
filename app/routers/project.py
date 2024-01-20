@@ -221,7 +221,7 @@ def upload_document(
             )
 
         s3_url = file_utils.upload_document_to_s3(file, project_id)
-        print(s3_url)
+        print(s3_url, "Document KEY")
         db_document = models.Document(
             project_id=project_id,
             file_name=file.filename,

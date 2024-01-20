@@ -37,6 +37,20 @@ def get_associated_project(
     return project
 
 
+def is_owner(
+    current_user: dict = Depends(oauth2.get_current_user),
+    project: models.Project = Depends(get_associated_project),
+    db: Session = Depends(get_db),
+):
+    if current_user.id == project.owner_id:
+        return current_user
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access project documents.",
+        )
+
+
 def is_owner_or_participant(
     current_user: dict = Depends(oauth2.get_current_user),
     project: models.Project = Depends(get_associated_project),
