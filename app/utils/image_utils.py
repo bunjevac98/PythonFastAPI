@@ -1,9 +1,6 @@
 from fastapi import HTTPException, status
-from fastapi.responses import StreamingResponse
-from app import schemas
 from app.config import settings
 import boto3
-from pathlib import Path
 from botocore.exceptions import NoCredentialsError
 
 AWS_ACCESS_KEY_ID = settings.aws_access_key_id
@@ -23,7 +20,6 @@ s3_client = boto3.client(
 def uploading_image_to_s3(file, project_id):
     key = f"project/{project_id}/logo"
     try:
-        
         s3_client.upload_fileobj(file.file, AWS_BUCKET_NAME, key)
         return f"{S3_BASE_URL}/{key}"
     except NoCredentialsError:

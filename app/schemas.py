@@ -6,12 +6,12 @@ from typing import Optional
 class ProjectBase(BaseModel):
     name: str
     description: str
-    #logo: str
-    
+    # logo: str
 
 
 class ProjectCreate(ProjectBase):
     pass
+
 
 # class ProjectUpdate(ProjectBase):
 class ProjectResponse(BaseModel):
