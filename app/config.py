@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str
     aws_region: str
     bucket_name: str
+    bucket_name_for_logo: str
 
     class Config:
         env_file = ".env"

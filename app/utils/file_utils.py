@@ -46,7 +46,7 @@ def get_document_file_path(document: schemas.Document) -> str:
     return document.file_path
 
 
-def download_document_from_s3(document: schemas.Document, file_key: str):
+def download_document_from_s3(file_key: str):
     try:
         # Generate a presigned URL for temporary access to the file
 

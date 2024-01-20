@@ -14,7 +14,7 @@ from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
 from typing import List
-from app.utils import file_utils
+from app.utils import image_utils, file_utils
 
 router = APIRouter(
     prefix="/projects",
@@ -115,19 +115,25 @@ def get_projects_documents(
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
-    response_model=schemas.ProjectBase,
+    response_model=schemas.ProjectResponse,
 )
 def create_project(
-    project: schemas.ProjectCreate,
+    project: dict = Depends(schemas.ProjectCreate),
+    logo: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
 ):
-    # id is now string
-    print("this is user email:", current_user.id)
     # new_project = models.Project(**project.dict())
     new_project = models.Project(owner_id=current_user.id, **project.model_dump())
 
     db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+
+    logo_url = image_utils.uploading_image_to_s3(logo, new_project.id)
+
+    new_project.logo = logo_url
+
     db.commit()
     db.refresh(new_project)
 
@@ -221,7 +227,7 @@ def upload_document(
             )
 
         s3_url = file_utils.upload_document_to_s3(file, project_id)
-        print(s3_url, "Document KEY")
+
         db_document = models.Document(
             project_id=project_id,
             file_name=file.filename,
@@ -240,7 +246,7 @@ def upload_document(
         )
 
 
-# We can update just name, description, logo, documents
+# We can update just name, description, logo
 @router.put("/{id}/info", response_model=schemas.ProjectBase)
 def update_project(
     id: int,
@@ -271,10 +277,6 @@ def update_project(
     return update_project
 
 
-# project.dict() is now dict(project) or project.model_dump()
-# Proveritiii
-
-
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(
     id: int,
@@ -299,3 +301,8 @@ def delete_project(
     project_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/dasd")
+def upload_logo():
+    return
