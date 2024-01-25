@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     aws_region: str
     bucket_name: str
     bucket_name_for_logo: str
+    sns_topic_arn: str
 
     class Config:
         env_file = ".env"

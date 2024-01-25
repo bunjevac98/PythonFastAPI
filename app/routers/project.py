@@ -10,20 +10,20 @@ from fastapi import (
 )
 from app import oauth2
 from .. import schemas
+from app.schemas import ProjectInvitationCreate
 from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
 from typing import List
-from app.utils import image_utils, file_utils, dependencies
+from app.utils import image_utils, file_utils, dependencies, invitation_utils
 
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"],
 )
 
+
 # It is set that just owneer of project can upload file we need to change that
-
-
 @router.get("/", response_model=List[schemas.ProjectBase])
 def get_projects(
     db: Session = Depends(get_db),
@@ -54,60 +54,103 @@ def get_project(
 
 @router.get("/{project_id}/documents")
 def get_projects_documents(
-    project_id: int,
+    project: schemas.ProjectBase = Depends(dependencies.get_project),
     db: Session = Depends(get_db),
-    current_user: int = Depends(oauth2.get_current_user),
+    current_user: dict = Depends(oauth2.get_current_user),
+    access_type: str = Depends(dependencies.is_owner_or_participant_off_project),
 ):
     try:
-        project = (
-            db.query(models.Project).filter(models.Project.id == project_id).first()
+        documents = (
+            db.query(models.Document)
+            .filter(models.Document.project_id == project.id)
+            .all()
         )
-        if not project:
+        if not documents:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No project found with ID: {project_id}",
-            )
-        if current_user.id == project.owner_id:
-            # User is the owner, proceed to get documents
-            documents = (
-                db.query(models.Document)
-                .filter(models.Document.project_id == project_id)
-                .all()
-            )
-            return documents
-        else:
-            # Check if the user is a participant in the project
-            participant = (
-                db.query(models.UserProjectAssociation)
-                .filter(
-                    models.UserProjectAssociation.project_id == project_id,
-                    models.UserProjectAssociation.user_id == current_user.id,
-                )
-                .first()
-            )
-        if participant:
-            documents = (
-                db.query(models.Document)
-                .filter(models.Document.project_id == project_id)
-                .all()
+                detail=f"No documents found for project with id--{project.id}",
             )
 
-            if not documents:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"No documents found for project with id--{project_id}",
-                )
+        return documents
 
-            return documents
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access project documents.",
-            )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrive project documents: {str(e)}",
+        )
+
+
+@router.get("/{project_id}/share")
+def share_project(
+    project_id: int,
+    email: str,
+    current_user: int = Depends(oauth2.get_current_user),
+    db: Session = Depends(get_db)
+    # access_type: str = Depends(dependencies.is_owner),
+):
+    try:
+        join_token = invitation_utils.generate_join_token(project_id, email)
+
+        # invitation_utils.save_join_token(email, project_id, join_token)
+        db_token = models.ProjectInvitation(
+            project_id=project_id,
+            join_token=join_token,
+            email=email,
+        )
+        print(db_token, "DODAO SAM")
+
+        db.add(db_token)
+        db.commit()
+
+        invitation_utils.send_invitation_email(email, project_id, join_token)
+
+        return {"message": "Invitation sent successfully"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Sending invitation failed: {str(e)}",
+        )
+
+
+# It seems that when I click on the link in my Outlook email, the associated function is 
+# called three times. Consequently, an exception is triggered due to this repeated invocation
+# However, when I manually paste the link from Outlook into the browser, the function 
+# is executed only once
+# The issue appears to be related to Outlook Cached Mode or Outlook Web Access (OWA).
+# The function itself works correctly, but the problem lies in the multiple calls.
+# I'm currently unsure how to resolve this.
+@router.get("/join")
+def join_project(
+    project_id: int,
+    join_token: str,
+    verified: dict = Depends(invitation_utils.verify_join_token),
+    db: Session = Depends(get_db),
+):
+    user_to_invite = (
+        db.query(models.User).filter(models.User.email == verified.email).first()
+    )
+
+    user_in_table = (
+        db.query(models.UserProjectAssociation)
+        .filter_by(user_id=user_to_invite.id, project_id=project_id)
+        .first()
+    )
+    print(user_in_table, "Is user in database?")
+    if user_in_table is None:
+        new_invitation = models.UserProjectAssociation(
+            user_id=user_to_invite.id, project_id=project_id
+        )
+
+        db.add(new_invitation)
+        db.commit()
+        db.refresh(new_invitation)
+        print("Add in database")
+        return {"message": f"Welcome to project"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User are already on that project",
         )
 
 
@@ -199,9 +242,10 @@ def invite_user(
 
 @router.post("/{project_id}/documents")
 def upload_document(
-    project_id: str,
+    project: models.Project = Depends(dependencies.get_project),
     file: UploadFile = File(...),
     current_user: dict = Depends(oauth2.get_current_user),
+    access_type: str = Depends(dependencies.is_owner_or_participant_off_project),
     db: Session = Depends(get_db),
 ):
     try:
@@ -211,25 +255,10 @@ def upload_document(
                 detail="Only PDF and DOCX file are allowed",
             )
 
-        project = (
-            db.query(models.Project).filter(models.Project.id == project_id).first()
-        )
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project with {project_id} not found",
-            )
-        # check if user that is loged in is owner of project
-        if current_user.id != project.owner_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only the project owner can invite participants",
-            )
-
-        s3_url = file_utils.upload_document_to_s3(file, project_id)
+        s3_url = file_utils.upload_document_to_s3(file, project.id)
 
         db_document = models.Document(
-            project_id=project_id,
+            project_id=project.id,
             file_name=file.filename,
             file_path=s3_url,
             user_id=current_user.id,
@@ -247,12 +276,13 @@ def upload_document(
 
 
 # We can update just name, description, logo
-@router.put("/{id}/info", response_model=schemas.ProjectBase)
+@router.put("/{id}/info", response_model=schemas.ProjectCreate)
 def update_project(
     id: int,
     update_project: schemas.ProjectCreate,
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
+    access_type: str = Depends(dependencies.is_owner_or_participant_off_project),
 ):
     project_query = db.query(models.Project).filter(models.Project.id == id)
     print(update_project)
@@ -308,6 +338,7 @@ def delete_project(
 def download_project_logo(
     project: schemas.ProjectBase = Depends(dependencies.get_project),
     current_user: int = Depends(oauth2.get_current_user),
+    access_type: str = Depends(dependencies.is_owner_or_participant_off_project),
 ):
     key = project.logo.split("/")
     filename = key[-1]
@@ -328,6 +359,7 @@ def upserting_project_logo(
     current_user: int = Depends(oauth2.get_current_user),
     db: Session = Depends(get_db),
     file: UploadFile = File(None),
+    access_type: str = Depends(dependencies.is_owner_or_participant_off_project),
 ):
     try:
         if file:

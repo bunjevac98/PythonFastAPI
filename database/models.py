@@ -72,3 +72,12 @@ class Document(Base):
         Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class ProjectInvitation(Base):
+    __tablename__ = "project_invitations"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    #project_id = Column(String, index=True)
+    project_id = Column(Integer, index=True)
+    join_token = Column(String, unique=True, index=True)
+    email = Column(String)

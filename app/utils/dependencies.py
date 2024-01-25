@@ -83,3 +83,26 @@ def is_owner_or_participant(
                 detail="You do not have permission to access project documents.",
             )
         return "participant"
+
+def is_owner_or_participant_off_project(
+    current_user: dict = Depends(oauth2.get_current_user),
+    project: models.Project = Depends(get_project),
+    db: Session = Depends(get_db),
+):
+    if current_user.id == project.owner_id:
+        return "owner"
+    else:
+        participant = (
+            db.query(models.UserProjectAssociation)
+            .filter(
+                models.UserProjectAssociation.project_id == project.id,
+                models.UserProjectAssociation.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not participant:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access project documents.",
+            )
+        return "participant"
