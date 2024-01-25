@@ -1,5 +1,5 @@
 import secrets
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, HTTPException, status
 import boto3
 from app.config import settings
 import hashlib
@@ -33,7 +33,7 @@ def send_invitation_email(email, project_id, join_token):
             MessageStructure="string",
         )
 
-        message_id = sns_response.get("MessageId")
+        sns_response.get("MessageId")
 
         # Subscribe the email address to the SNS topic
         subscribe_response = sns_client.subscribe(
@@ -41,7 +41,7 @@ def send_invitation_email(email, project_id, join_token):
             Protocol="email",
             Endpoint=email,
         )
-
+        print(subscribe_response)
     except Exception as e:
         print(
             f"Error sending invitation email to {email} for project {project_id}: {str(e)}"

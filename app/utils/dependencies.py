@@ -84,6 +84,7 @@ def is_owner_or_participant(
             )
         return "participant"
 
+
 def is_owner_or_participant_off_project(
     current_user: dict = Depends(oauth2.get_current_user),
     project: models.Project = Depends(get_project),

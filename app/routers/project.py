@@ -10,7 +10,6 @@ from fastapi import (
 )
 from app import oauth2
 from .. import schemas
-from app.schemas import ProjectInvitationCreate
 from database import models
 from sqlalchemy.orm import Session
 from database.database import get_db
@@ -113,9 +112,9 @@ def share_project(
         )
 
 
-# It seems that when I click on the link in my Outlook email, the associated function is 
+# It seems that when I click on the link in my Outlook email, the associated function is
 # called three times. Consequently, an exception is triggered due to this repeated invocation
-# However, when I manually paste the link from Outlook into the browser, the function 
+# However, when I manually paste the link from Outlook into the browser, the function
 # is executed only once
 # The issue appears to be related to Outlook Cached Mode or Outlook Web Access (OWA).
 # The function itself works correctly, but the problem lies in the multiple calls.
@@ -146,7 +145,7 @@ def join_project(
         db.commit()
         db.refresh(new_invitation)
         print("Add in database")
-        return {"message": f"Welcome to project"}
+        return {"message": "Welcome to project"}
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

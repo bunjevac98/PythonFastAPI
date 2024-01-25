@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from database import models
 from database.database import engine
 from .routers import project, user, auth, document
-from app.lambda_function import lambda_function
+
 models.Base.metadata.create_all(bind=engine)
 
 

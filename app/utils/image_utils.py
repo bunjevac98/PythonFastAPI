@@ -3,10 +3,6 @@ from fastapi.responses import StreamingResponse
 from app.config import settings
 import boto3
 from botocore.exceptions import NoCredentialsError
-from PIL import Image
-import io
-import os
-import tempfile
 
 
 AWS_ACCESS_KEY_ID = settings.aws_access_key_id
@@ -21,7 +17,6 @@ s3_client = boto3.client(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
     region_name=AWS_REGION,
 )
-
 
 
 def uploading_image_to_s3(file, project_id):

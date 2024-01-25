@@ -69,13 +69,16 @@ class Document(BaseModel):
     file_path: str
     project_id: int
     user_id: int
-    
+
+
 class DocumentRespones(BaseModel):
     file_name: str
     file_path: str
 
+
 class DocumentUpdate(BaseModel):
     file_name: str
+
 
 class ProjectInvitationCreate(BaseModel):
     project_id: int

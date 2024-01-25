@@ -77,7 +77,7 @@ class Document(Base):
 class ProjectInvitation(Base):
     __tablename__ = "project_invitations"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    #project_id = Column(String, index=True)
+    # project_id = Column(String, index=True)
     project_id = Column(Integer, index=True)
     join_token = Column(String, unique=True, index=True)
     email = Column(String)
