@@ -48,7 +48,6 @@ def send_invitation_email(email, project_id, join_token):
         )
 
 
-
 def generate_join_token(project_id, email):
     combined_string = f"{project_id}-{email}"
     hashed_imput = hashlib.sha256(combined_string.encode()).hexdigest()
