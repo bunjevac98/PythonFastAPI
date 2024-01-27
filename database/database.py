@@ -5,8 +5,9 @@ from app.config import settings
 
 # Format of connection string
 # Sqlalchemy_url=""postgresql://postgres:username:password@ipaddress-hostname/PythonFastAPI""
-
-SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
+# DATABASE_URL = "postgresql://your-master-username:your-password@your-rds-endpoint:your-port/your-database-name"
+# SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
+SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.aws_master_username}:{settings.aws_master_password}@{settings.aws_database_endpoint}:{settings.aws_database_port}/{settings.aws_database_name}"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
